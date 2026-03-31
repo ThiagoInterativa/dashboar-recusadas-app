@@ -7,6 +7,9 @@ from collections import Counter
 st.set_page_config(layout="wide")
 st.title("📊 Relatório de Recusas por Técnico")
 
+if "session_pabx" not in st.session_state:
+    st.session_state.session_pabx = login_pabx()
+    
 # ======= FILTROS =======
 fila_id = st.text_input("Fila ID", "2812")
 data_inicio = st.date_input("Data início")
@@ -20,17 +23,57 @@ if st.button("Buscar dados"):
 
     url = f"https://pabx.evence.com.br/callcenter/relatorios/recusa-pa?fila_id={fila_id}&data_inicial={data_inicio}&data_final={data_fim}"
 
-    # cookie e headers CORRETOS
-    cookie_laravel_session = "eyJpdiI6IkEwTjNlbGhzSDVlZ1lEdTdYTkF5dGc9PSIsInZhbHVlIjoiYUtVUzAzY1Z2djlLNVhuRWEzXC91RlBVZ3gyWkltZnZzMk0wZGtIVmIyZFhUTFdcL0lqS1E2SHhUN0ppcnlUcDRzYmRMZjZiTnBVUnlwUnpMM2pBdkxLUT09IiwibWFjIjoiYmMwMGZmNDU0YmNjNDI1NzdjOTBhNGFlNWU2ZGUwYzlkN2IwYjJkODU0NGRlMzY5ZjJmN2JlYjYxZGMzNDA5ZSJ9"
+    #login
+    login_url = "https://pabx.evence.com.br/login"
 
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Cookie": f"laravel_session={cookie_laravel_session}"
-    }
+email = "SEU_EMAIL"
+senha = "SUA_SENHA"
+
+def login_pabx():
+    session = requests.Session()
+    session.headers.update({"User-Agent": "Mozilla/5.0"})
+    
+    try:
+        r = session.get(login_url)
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        csrf = soup.find("input", {"name": "_token"})
+        if not csrf:
+            st.error("Erro ao pegar token CSRF")
+            return None
+
+        payload = {
+            "login": email,
+            "senha": senha,
+            "_token": csrf["value"]
+        }
+
+        response = session.post(login_url, data=payload)
+
+        if response.url == login_url:
+            st.error("Login falhou")
+            return None
+
+        return session
+
+    except Exception as e:
+        st.error(f"Erro no login: {e}")
+        return None
+        
 
     tecnicos = []  # <-- aqui dentro do bloco if, alinhado corretamente
 
-    response = requests.get(url, headers=headers)
+session = st.session_state.session_pabx
+
+if not session:
+    st.error("Sessão inválida")
+    st.stop()
+
+response = session.get(url)
+if "login" in response.url:
+    session = login_pabx()
+    st.session_state.session_pabx = session
+    response = session.get(url)
 
     if response.status_code != 200:
         st.error("Erro ao acessar relatório")
@@ -57,8 +100,7 @@ if st.button("Buscar dados"):
         # loop páginas
         for page in range(1, ultima_pagina + 1):
             url_pagina = f"{url}&page={page}"
-            response = requests.get(url_pagina, headers=headers)
-
+            response = session.get(url_pagina)
             soup = BeautifulSoup(response.text, "html.parser")
             tabela = soup.find("table")
 
