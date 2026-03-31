@@ -26,8 +26,8 @@ if st.button("Buscar dados"):
     #login
     login_url = "https://pabx.evence.com.br/login"
 
-email = "SEU_EMAIL"
-senha = "SUA_SENHA"
+email = "suporte@interativanet.com.br"
+senha = "smk03657"
 
 def login_pabx():
     session = requests.Session()
