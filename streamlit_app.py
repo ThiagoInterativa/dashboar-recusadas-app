@@ -24,10 +24,20 @@ if st.button("Buscar dados"):
     url = f"https://pabx.evence.com.br/callcenter/relatorios/recusa-pa?fila_id={fila_id}&data_inicial={data_inicio}&data_final={data_fim}"
 
     #login
-    login_url = "https://pabx.evence.com.br/login"
+   login_url = "https://pabx.evence.com.br/login"
+monitor_url = "https://pabx.evence.com.br/callcenter/monitoramentoAgentes/detalhes?agentes=46,47,49,50,53"
 
-email = suporte@interativanet.com.br
-senha = smk03657
+# --- Credenciais ---
+fila_id = 2812
+email = "suporte@interativanet.com.br"
+senha = "smk03657"
+
+def remover_acentos(txt):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', txt)
+        if unicodedata.category(c) != 'Mn'
+    )
+
 
 def login_pabx():
     session = requests.Session()
