@@ -3,57 +3,30 @@ import requests
 import plotly.express as px
 from bs4 import BeautifulSoup
 from collections import Counter
+import unicodedata
 
 st.set_page_config(layout="wide")
 st.title("📊 Relatório de Recusas por Técnico")
 
-if "session_pabx" not in st.session_state:
-    st.session_state.session_pabx = login_pabx()
-    
-# ======= FILTROS =======
-fila_id = st.text_input("Fila ID", "2812")
-data_inicio = st.date_input("Data início")
-data_fim = st.date_input("Data fim")
-
-if st.button("Buscar dados"):
-
-    # converte data para string
-    data_inicio = str(data_inicio)
-    data_fim = str(data_fim)
-
-    url = f"https://pabx.evence.com.br/callcenter/relatorios/recusa-pa?fila_id={fila_id}&data_inicial={data_inicio}&data_final={data_fim}"
-
-
-
-# URL de login e monitoramento (Mantido original)
+# ===== CONFIG LOGIN =====
 login_url = "https://pabx.evence.com.br/login"
-monitor_url = "https://pabx.evence.com.br/callcenter/monitoramentoAgentes/detalhes?agentes=46,47,49,50,53"
 
-# --- Credenciais ---
-fila_id = 2812
 email = "suporte@interativanet.com.br"
 senha = "smk03657"
 
-
-def remover_acentos(txt):
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', txt)
-        if unicodedata.category(c) != 'Mn'
-    )
-
+# ===== FUNÇÃO LOGIN =====
 def login_pabx():
     session = requests.Session()
     session.headers.update({"User-Agent": "Mozilla/5.0"})
+    
     try:
         r = session.get(login_url)
         soup = BeautifulSoup(r.text, "html.parser")
-        csrf_token = soup.find("input", {"name": "_token"})["value"]
-        payload = {"login": email, "senha": senha, "_token": csrf_token}
-        response = session.post(login_url, data=payload)
-        return session if response.url != login_url else None
-    except:
-        return None
 
+        csrf = soup.find("input", {"name": "_token"})
+        if not csrf:
+            st.error("Erro ao pegar token CSRF")
+            return None
 
         payload = {
             "login": email,
@@ -72,81 +45,98 @@ def login_pabx():
     except Exception as e:
         st.error(f"Erro no login: {e}")
         return None
-        
 
-    tecnicos = []  # <-- aqui dentro do bloco if, alinhado corretamente
 
-session = st.session_state.session_pabx
+# ===== CRIA SESSÃO =====
+if "session_pabx" not in st.session_state:
+    st.session_state.session_pabx = login_pabx()
 
-if not session:
-    st.error("Sessão inválida")
-    st.stop()
+# ===== FILTROS =====
+fila_id = st.text_input("Fila ID", "2812")
+data_inicio = st.date_input("Data início")
+data_fim = st.date_input("Data fim")
 
-response = session.get(url)
-if "login" in response.url:
-    session = login_pabx()
-    st.session_state.session_pabx = session
+# ===== BOTÃO =====
+if st.button("Buscar dados"):
+
+    session = st.session_state.session_pabx
+
+    if not session:
+        st.error("Sessão inválida")
+        st.stop()
+
+    data_inicio = str(data_inicio)
+    data_fim = str(data_fim)
+
+    url = f"https://pabx.evence.com.br/callcenter/relatorios/recusa-pa?fila_id={fila_id}&data_inicial={data_inicio}&data_final={data_fim}"
+
+    # PRIMEIRA REQUISIÇÃO
     response = session.get(url)
+
+    # SE PERDEU LOGIN → LOGA DE NOVO
+    if "login" in response.url:
+        session = login_pabx()
+        st.session_state.session_pabx = session
+        response = session.get(url)
 
     if response.status_code != 200:
         st.error("Erro ao acessar relatório")
-    else:
+        st.stop()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    tecnicos = []
+
+    # ===== PAGINAÇÃO =====
+    ultima_pagina = 1
+    paginacao = soup.find("ul", class_="pagination")
+
+    if paginacao:
+        paginas = paginacao.find_all("a")
+        numeros = []
+
+        for p in paginas:
+            try:
+                numeros.append(int(p.text.strip()))
+            except:
+                pass
+
+        if numeros:
+            ultima_pagina = max(numeros)
+
+    # ===== LOOP PAGINAS =====
+    for page in range(1, ultima_pagina + 1):
+        url_pagina = f"{url}&page={page}"
+        response = session.get(url_pagina)
+
         soup = BeautifulSoup(response.text, "html.parser")
+        tabela = soup.find("table")
 
-        # pegar páginas
-        ultima_pagina = 1
-        paginacao = soup.find("ul", class_="pagination")
+        if not tabela:
+            continue
 
-        if paginacao:
-            paginas = paginacao.find_all("a")
-            numeros = []
+        linhas = tabela.find("tbody").find_all("tr")
 
-            for p in paginas:
-                try:
-                    numeros.append(int(p.text.strip()))
-                except:
-                    pass
+        for linha in linhas:
+            colunas = linha.find_all("td")
+            if len(colunas) >= 3:
+                tecnico = colunas[2].text.strip()
+                tecnicos.append(tecnico)
 
-            if numeros:
-                ultima_pagina = max(numeros)
+    contagem = dict(Counter(tecnicos))
 
-        # loop páginas
-        for page in range(1, ultima_pagina + 1):
-            url_pagina = f"{url}&page={page}"
-            response = session.get(url_pagina)
-            soup = BeautifulSoup(response.text, "html.parser")
-            tabela = soup.find("table")
+    # ===== CARDS =====
+    st.subheader("Resumo por técnico")
 
-            if not tabela:
-                continue
+    cols = st.columns(4)
+    for i, (t, q) in enumerate(contagem.items()):
+        cols[i % 4].metric(t, q)
 
-            linhas = tabela.find("tbody").find_all("tr")
+    # ===== GRÁFICO =====
+    fig = px.pie(
+        names=list(contagem.keys()),
+        values=list(contagem.values()),
+        title="Proporção de Recusas"
+    )
 
-            for linha in linhas:
-                colunas = linha.find_all("td")
-                if len(colunas) >= 3:
-                    tecnico = colunas[2].text.strip()
-                    tecnicos.append(tecnico)
-
-        contagem = dict(Counter(tecnicos))
-
-        # ===== CARDS =====
-        st.subheader("Resumo por técnico")
-
-        cols = st.columns(4)
-        i = 0
-        for t, q in contagem.items():
-            cols[i % 4].metric(t, q)
-            i += 1
-
-        # ===== GRÁFICO =====
-        nomes = list(contagem.keys())
-        recusas = list(contagem.values())
-
-        fig = px.pie(
-            names=nomes,
-            values=recusas,
-            title="Proporção de Recusas"
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
