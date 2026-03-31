@@ -31,8 +31,8 @@ monitor_url = "https://pabx.evence.com.br/callcenter/monitoramentoAgentes/detalh
 
 # --- Credenciais ---
 fila_id = 2812
-email = "aqui"
-senha = "aqui"
+email = "suporte@interativanet.com.br"
+senha = "smk03657"
 
 
 def remover_acentos(txt):
