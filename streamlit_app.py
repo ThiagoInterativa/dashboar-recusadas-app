@@ -23,14 +23,17 @@ if st.button("Buscar dados"):
 
     url = f"https://pabx.evence.com.br/callcenter/relatorios/recusa-pa?fila_id={fila_id}&data_inicial={data_inicio}&data_final={data_fim}"
 
-    #login
-   login_url = "https://pabx.evence.com.br/login"
+
+
+# URL de login e monitoramento (Mantido original)
+login_url = "https://pabx.evence.com.br/login"
 monitor_url = "https://pabx.evence.com.br/callcenter/monitoramentoAgentes/detalhes?agentes=46,47,49,50,53"
 
 # --- Credenciais ---
 fila_id = 2812
-email = "suporte@interativanet.com.br"
-senha = "smk03657"
+email = "aqui"
+senha = "aqui"
+
 
 def remover_acentos(txt):
     return ''.join(
@@ -38,19 +41,19 @@ def remover_acentos(txt):
         if unicodedata.category(c) != 'Mn'
     )
 
-
 def login_pabx():
     session = requests.Session()
     session.headers.update({"User-Agent": "Mozilla/5.0"})
-    
     try:
         r = session.get(login_url)
         soup = BeautifulSoup(r.text, "html.parser")
+        csrf_token = soup.find("input", {"name": "_token"})["value"]
+        payload = {"login": email, "senha": senha, "_token": csrf_token}
+        response = session.post(login_url, data=payload)
+        return session if response.url != login_url else None
+    except:
+        return None
 
-        csrf = soup.find("input", {"name": "_token"})
-        if not csrf:
-            st.error("Erro ao pegar token CSRF")
-            return None
 
         payload = {
             "login": email,
