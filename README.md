@@ -1,19 +1,3 @@
-# 🎈 Blank app template
+# 🎈Sistema de consulta de ligações recusadas
 
-A simple Streamlit app template for you to modify!
-
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://blank-app-template.streamlit.app/)
-
-### How to run it on your own machine
-
-1. Install the requirements
-
-   ```
-   $ pip install -r requirements.txt
-   ```
-
-2. Run the app
-
-   ```
-   $ streamlit run streamlit_app.py
-   ```
+<img width="1683" height="798" alt="image" src="https://github.com/user-attachments/assets/21a3e6a3-437d-4e21-ba19-31a93e764bca" />
