@@ -7,6 +7,7 @@ import unicodedata
 
 st.set_page_config(layout="wide")
 
+
 st.title("📊 Relatório de Recusas por Técnico")
 
 # ===== CONFIG LOGIN =====
